@@ -2,19 +2,26 @@
 
 YATA（Yet Another Task App）は、レストラン在庫管理システムのFlutterアプリケーションです。このドキュメントでは、プロジェクトのディレクトリ構造と各ディレクトリの役割について説明します。
 
-## アーキテクチャ概要
+## アーキテクチャ
 
-YATAプロジェクトは、Flutterを使用して開発されており、一直線上の依存関係を持つ、Futureベースのアーキテクチャを採用しています。各レイヤーはドメインモデルをベースとして、明確に分離されています。
-プロジェクトは以下のレイヤー構造に従います：
+### 概要
 
-```text
+このプロジェクトは、一言で表すなら、「**フィーチャーベースの『サービスレイヤー・アーキテクチャ』(Feature-based Service Layer Architecture)**」を採用しています。ただし、このアーキテクチャと類似しているClean Architectureとの明確な違いは、「依存性の逆転は使わず、UI→Service→Repositoryという直線的な依存関係にしている」点です。
+
+このアーキテクチャについては、以下のような言い換えも可能です：
+
+- フィーチャーベース・レイヤードアーキテクチャ (Feature-based Layered Architecture)
+- サービスレイヤー・アーキテクチャ (Service Layer Architecture)
+- 直線的レイヤードアーキテクチャ (Linear Layered Architecture)
+
+### レイヤー構造(依存関係)
+
+```
 UI Layer (Flutter Widgets/Pages)
     ↓
 Business Services Layer  
     ↓
 Repository Layer (Data Access)
-    ↓
-Infrastructure (Supabase)
 ```
 
 ## プロジェクトルート構造
@@ -84,8 +91,9 @@ core/
 │       ├── sync_model.dart     
 │       └── sync_model.g.dart   
 └── utils/                      # ユーティリティ
-    ├── log_service.dart        
-    └── query_utils.dart        
+    ├── log_service.dart        # ログサービス
+    ├── logger_mixin.dart       # ログ機能ミックスイン
+    └── query_utils.dart        # クエリユーティリティ        
 ```
 
 ### features/ ディレクトリ
@@ -110,7 +118,8 @@ features/
     │   ├── purchase_item_repository.dart
     │   ├── stock_transaction_repository.dart
     │   └── stock_adjustment_repository.dart
-    └── services/               # ビジネスロジック層（未実装）
+    └── services/               # ビジネスロジック層（実装済み）
+        └── analytics_service.dart
 
 各機能内の共通構造：
 [feature_name]/
@@ -124,7 +133,7 @@ features/
 │   ├── screens/                # 画面・ページ
 │   └── widgets/                # 再利用可能ウィジェット
 ├── repositories/               # データアクセス層（実装済み）
-└── services/                   # ビジネスロジック層（未実装）
+└── services/                   # ビジネスロジック層（実装状況は機能により異なる）
 ```
 
 ### その他のディレクトリ
@@ -159,12 +168,18 @@ shared/                         # 共通UI要素
   - `menu`: MenuItemRepository, MenuCategoryRepository
   - `order`: OrderRepository, OrderItemRepository
   - `stock`: PurchaseRepository, PurchaseItemRepository, StockTransactionRepository, StockAdjustmentRepository
-- **コア機能**: 認証サービス、同期モデル、ユーティリティ
+- **サービス層**: 6個のサービスクラスが実装済み
+  - `analytics`: AnalyticsService
+  - `inventory`: InventoryService
+  - `menu`: MenuService
+  - `order`: CartService, KitchenService, OrderService
+  - `stock`: 未実装
+- **コア機能**: 認証サービス、同期モデル、ユーティリティ（LoggerMixin含む）
 
 ### 未実装
 
-- **UI層（presentation）**: プロバイダー、画面、ウィジェット
-- **サービス層**: ビジネスロジック
+- **UI層（presentation）**: プロバイダー、画面、ウィジェット（全機能）
+- **サービス層**: stockサービス
 - **インフラ層**: Supabase統合、オフライン機能
 - **ルーティング**: アプリケーションナビゲーション
 - **共通UI**: レイアウト、テーマ、共通ウィジェット
