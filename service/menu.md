@@ -192,7 +192,7 @@ class MaterialUsageCalculation {
   - `menuItemId`: メニューアイテムID
   - `isAvailable`: 新しい販売可否状態
   - `userId`: ユーザーID
-- **戦り値**: `Future<MenuItem?>`
+- **戻り値**: `Future<MenuItem?>`
 - **動作**:
   - メニューアイテムの存在・アクセス権限を確認
   - `is_available`フラグを更新
