@@ -60,7 +60,33 @@ await LogService.initialize();
 await LogService.initialize(minimumLevel: LogLevel.info);
 ```
 
-### 2. 基本ログ出力
+### 2. LoggerMixin使用（推奨）
+
+YATAプロジェクトでは、LoggerMixinを使用した簡潔なログ記録を推奨しています。
+
+```dart
+import "../../../core/utils/logger_mixin.dart";
+
+// クラスでLoggerMixinを使用
+@loggerComponent
+class UserAuthService with LoggerMixin {
+  @override
+  String get loggerComponent => "UserAuthService";
+
+  Future<void> login() async {
+    logDebug("Login attempt started");
+    
+    try {
+      // 認証処理
+      logInfo("User authenticated successfully");
+    } catch (error, stackTrace) {
+      logError("Authentication failed", null, error, stackTrace);
+    }
+  }
+}
+```
+
+### 3. 基本ログ出力（直接LogService使用）
 
 ```dart
 // デバッグログ（開発時のみ出力）
@@ -76,7 +102,7 @@ LogService.warning("UserAuth", "Invalid login attempt");
 LogService.error("UserAuth", "Database connection failed", null, error, stackTrace);
 ```
 
-### 3. 多言語対応ログ
+### 4. 多言語対応ログ
 
 ```dart
 // 英語・日本語併用メッセージ
@@ -88,7 +114,7 @@ LogService.info("Inventory", "Stock updated");
 // 出力: "Stock updated"
 ```
 
-### 4. 事前定義メッセージの使用
+### 5. 事前定義メッセージの使用
 
 ```dart
 // LogMessage を使用したログ出力
@@ -104,6 +130,121 @@ LogService.errorWithMessage(
   {"id": "12345", "table": "users"}
 );
 ```
+
+## LoggerMixin詳細
+
+LoggerMixinは、YATAプロジェクトでの可読性向上とコード簡潔化のために開発された機能です。
+
+### LoggerMixinの利点
+
+| 従来のLogService | LoggerMixin |
+|------------------|-------------|
+| `LogService.debug("Component", "message")` | `logDebug("message")` |
+| `LogService.error("Component", "Failed", null, e)` | `logError("Failed", null, e)` |
+| コンポーネント名を毎回指定 | 自動的にコンポーネント名設定 |
+| 文字数が長い | 約50%の文字数削減 |
+
+### LoggerMixin実装パターン
+
+#### 1. BaseRepositoryでの自動実装
+
+BaseRepositoryを継承するすべてのRepositoryクラスで自動的にLoggerMixinが利用可能：
+
+```dart
+class StockRepository extends BaseRepository<Stock, String> {
+  // loggerComponentは自動的に"StockRepository"に設定
+  
+  Future<Stock?> findById(String id) async {
+    logDebug("Finding stock with ID: $id");  // 簡潔なログ記録
+    
+    try {
+      // 処理...
+      logInfo("Stock found successfully");
+      return stock;
+    } catch (error, stackTrace) {
+      logError("Failed to find stock", null, error, stackTrace);
+      rethrow;
+    }
+  }
+}
+```
+
+#### 2. Serviceクラスでの手動実装
+
+各Serviceクラスではmixinを手動で適用：
+
+```dart
+@loggerComponent
+class InventoryService with LoggerMixin {
+  @override
+  String get loggerComponent => "InventoryService";
+  
+  Future<void> updateStock() async {
+    logInfo("Starting stock update process");
+    // 処理...
+  }
+}
+```
+
+### LoggerMixinメソッド一覧
+
+#### 基本ログメソッド
+
+```dart
+// デバッグログ
+logDebug("Debug message", "デバッグメッセージ");
+
+// 情報ログ  
+logInfo("Info message", "情報メッセージ");
+
+// 警告ログ
+logWarning("Warning message", "警告メッセージ");
+
+// エラーログ
+logError("Error message", "エラーメッセージ", error, stackTrace);
+```
+
+#### 事前定義メッセージメソッド
+
+```dart
+// 情報レベル
+logInfoMessage(RepositoryInfo.entityCreated, {"table": "users"});
+
+// 警告レベル
+logWarningMessage(ValidationWarning.invalidData, {"field": "email"});
+
+// エラーレベル
+logErrorMessage(RepositoryError.databaseConnectionFailed, null, error, stackTrace);
+```
+
+### @loggerComponentアノテーション
+
+クラスがLoggerMixinを使用することを明示するマーカー：
+
+```dart
+// アノテーション使用により可読性向上
+@loggerComponent
+class UserService with LoggerMixin {
+  @override
+  String get loggerComponent => "UserService";
+}
+```
+
+### 実装済みクラス
+
+LoggerMixinが既に適用されているクラス：
+
+#### Repositoryレイヤー（14クラス）
+- BaseRepository（自動適用）
+- StockTransactionRepository, MaterialRepository, etc.
+
+#### Serviceレイヤー（6クラス）
+- AnalyticsService
+- InventoryService
+- MenuService
+- OrderService
+- CartService
+- KitchenService
 
 ## 高度な機能
 
@@ -325,21 +466,55 @@ class LogService {
 
 ## ベストプラクティス
 
-### 1. 適切なログレベルの選択
+### 1. LoggerMixinの使用（推奨）
+
+```dart
+// ✅ 良い例：LoggerMixinを使用
+@loggerComponent
+class OrderService with LoggerMixin {
+  @override
+  String get loggerComponent => "OrderService";
+  
+  Future<void> createOrder() async {
+    logInfo("Creating new order");
+    try {
+      // 処理...
+      logInfo("Order created successfully");
+    } catch (error, stackTrace) {
+      logError("Failed to create order", null, error, stackTrace);
+    }
+  }
+}
+
+// ❌ 悪い例：直接LogService使用（冗長）
+class OrderService {
+  Future<void> createOrder() async {
+    LogService.info("OrderService", "Creating new order");
+    try {
+      // 処理...
+      LogService.info("OrderService", "Order created successfully");
+    } catch (error, stackTrace) {
+      LogService.error("OrderService", "Failed to create order", null, error, stackTrace);
+    }
+  }
+}
+```
+
+### 2. 適切なログレベルの選択
 
 ```dart
 // ✅ 良い例
-LogService.debug("UI", "Button clicked");           // UI操作の詳細
-LogService.info("Auth", "User login successful");   // 重要な状態変化
-LogService.warning("API", "Rate limit approaching"); // 潜在的問題
-LogService.error("DB", "Connection failed", null, error, stackTrace); // 深刻な問題
+logDebug("Button clicked");                    // UI操作の詳細
+logInfo("User login successful");              // 重要な状態変化
+logWarning("Rate limit approaching");          // 潜在的問題
+logError("Connection failed", null, error, stackTrace); // 深刻な問題
 
 // ❌ 悪い例
-LogService.error("UI", "Button clicked");           // 重要度が不適切
-LogService.debug("DB", "Connection failed");        // 重要な情報が見逃される
+logError("Button clicked");                    // 重要度が不適切
+logDebug("Connection failed");                 // 重要な情報が見逃される
 ```
 
-### 2. 適切なコンポーネント名
+### 3. 適切なコンポーネント名
 
 ```dart
 // ✅ 良い例：機能領域を明確に
@@ -352,7 +527,7 @@ LogService.info("Service", "Something happened");
 LogService.info("Component", "Action performed");
 ```
 
-### 3. エラー情報の適切な記録
+### 4. エラー情報の適切な記録
 
 ```dart
 // ✅ 良い例：包括的なエラー情報
@@ -374,7 +549,7 @@ catch (error) {
 }
 ```
 
-### 4. パフォーマンス考慮
+### 5. パフォーマンス考慮
 
 ```dart
 // ✅ 良い例：条件付きログ
@@ -389,7 +564,7 @@ LogService.errorWithMessage("Repository", RepositoryError.recordNotFound);
 LogService.debug("Loop", "Processing item ${i} of ${total}"); // ループ内で頻繁実行
 ```
 
-### 5. リソース管理
+### 6. リソース管理
 
 ```dart
 // アプリケーション開始時
@@ -405,6 +580,36 @@ Timer.periodic(Duration(days: 1), (_) async {
 ```
 
 ## 関連コンポーネント
+
+### LoggerMixin
+
+`lib/core/utils/logger_mixin.dart`で定義：
+
+```dart
+mixin LoggerMixin {
+  String get loggerComponent;
+  
+  void logDebug(String message, [String? messageJa]);
+  void logInfo(String message, [String? messageJa]);
+  void logWarning(String message, [String? messageJa]);
+  void logError(String message, [String? messageJa, Object? error, StackTrace? stackTrace]);
+  
+  void logInfoMessage(LogMessage logMessage, [Map<String, String>? params]);
+  void logWarningMessage(LogMessage logMessage, [Map<String, String>? params]);
+  void logErrorMessage(LogMessage logMessage, [Map<String, String>? params, Object? error, StackTrace? stackTrace]);
+}
+```
+
+### LoggerComponent Annotation
+
+```dart
+class LoggerComponent {
+  const LoggerComponent([this.name]);
+  final String? name;
+}
+
+const LoggerComponent loggerComponent = LoggerComponent();
+```
 
 ### LogLevel Enum
 

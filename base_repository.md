@@ -17,7 +17,8 @@ BaseRepositoryは、YATAアプリケーション全体のデータアクセス�
 ### クラス定義
 
 ```dart
-abstract class BaseRepository<T extends BaseModel, ID> {
+@loggerComponent
+abstract class BaseRepository<T extends BaseModel, ID> with LoggerMixin {
   /// テーブル名
   final String tableName;
   
@@ -26,6 +27,10 @@ abstract class BaseRepository<T extends BaseModel, ID> {
   
   /// JSONからモデルインスタンスを作成するファクトリ関数
   T Function(Map<String, dynamic> json) get fromJson;
+  
+  /// ログコンポーネント名（runtimeTypeから自動取得）
+  @override
+  String get loggerComponent => runtimeType.toString().split("<")[0];
 }
 ```
 
@@ -51,6 +56,55 @@ final PrimaryKeyMap compositeKey = {
   "item_id": "item_456"
 };
 ```
+
+## LoggerMixin統合
+
+BaseRepositoryはLoggerMixinを統合し、すべてのRepositoryクラスで自動的に簡潔なログ記録が可能です。
+
+### 自動ログコンポーネント名設定
+
+各Repositoryクラスで個別のコンポーネント名が自動設定されます：
+
+```dart
+class StockRepository extends BaseRepository<Stock, String> {
+  // loggerComponentは自動的に"StockRepository"に設定
+  
+  Future<Stock?> findById(String id) async {
+    logDebug("Finding stock with ID: $id");  // 簡潔なログ記録
+    
+    try {
+      // データベース処理
+      final result = await getById(id);
+      logInfo("Stock retrieved successfully");
+      return result;
+    } catch (error, stackTrace) {
+      logError("Failed to find stock", null, error, stackTrace);
+      rethrow;
+    }
+  }
+}
+```
+
+### ログ出力例
+
+```
+[StockRepository] DEBUG: Finding stock with ID: stock_123
+[StockRepository] INFO: Stock retrieved successfully
+[OrderRepository] DEBUG: Creating new order
+[OrderRepository] INFO: Order created successfully
+[MaterialRepository] ERROR: Failed to update material: Database connection timeout
+```
+
+### ログメソッド
+
+BaseRepositoryから継承されるすべてのRepositoryクラスで以下のメソッドが利用可能：
+
+| メソッド | 説明 | 使用例 |
+|---------|------|-------|
+| `logDebug()` | デバッグ情報（開発時のみ） | `logDebug("Searching for entity: $id")` |
+| `logInfo()` | 一般情報 | `logInfo("Entity created successfully")` |
+| `logWarning()` | 警告（リリース時も保存） | `logWarning("Duplicate entry detected")` |
+| `logError()` | エラー（リリース時も保存） | `logError("Database error", null, e, st)` |
 
 ## 型システムと安全性
 
