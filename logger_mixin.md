@@ -17,6 +17,7 @@ LogService.error("BaseRepository", "Failed to create entity", null, error, stack
 ```
 
 **問題点**：
+
 - コンポーネント名の重複記述
 - 長い関数呼び出し（約50文字以上）
 - 可読性の低下
@@ -33,6 +34,7 @@ logError("Failed to create entity", null, error, stackTrace);
 ```
 
 **改善点**：
+
 - 約50%の文字数削減
 - コンポーネント名の自動設定
 - 統一されたインターフェース
@@ -101,6 +103,7 @@ abstract class BaseRepository<T, ID> with LoggerMixin {
 ```
 
 **利点**：
+
 - 全Repositoryクラスで一貫したログ記録
 - 各クラス名が自動的にコンポーネント名として設定
 - 追加実装不要
@@ -130,6 +133,7 @@ class InventoryService with LoggerMixin {
 ```
 
 **利点**：
+
 - クラス固有のコンポーネント名設定
 - ビジネスロジックに特化したログ記録
 
@@ -140,22 +144,27 @@ class InventoryService with LoggerMixin {
 BaseRepositoryを継承する全14クラスで自動的にLoggerMixin機能が利用可能：
 
 #### Analytics
+
 - `DailySummaryRepository`
 
 #### Inventory
+
 - `MaterialCategoryRepository`
 - `MaterialRepository`
 - `RecipeRepository`
 
 #### Menu
+
 - `MenuCategoryRepository`
 - `MenuItemRepository`
 
 #### Order
+
 - `OrderRepository`
 - `OrderItemRepository`
 
 #### Stock
+
 - `PurchaseRepository`
 - `PurchaseItemRepository`
 - `StockAdjustmentRepository`
@@ -351,11 +360,13 @@ LogService.error("Component", "message", null, e) → logError("message", null, 
 #### 1. loggerComponentの実装忘れ
 
 **症状**：
+
 ```
 Error: Missing concrete implementation of 'getter mixin LoggerMixin.loggerComponent'
 ```
 
 **解決方法**：
+
 ```dart
 class ExampleService with LoggerMixin {
   @override
@@ -366,11 +377,13 @@ class ExampleService with LoggerMixin {
 #### 2. アノテーションエラー
 
 **症状**：
+
 ```
 Error: Annotation must be either a const variable reference or const constructor invocation
 ```
 
 **解決方法**：
+
 ```dart
 // ❌ 間違い
 @loggerComponent("ExampleService")
@@ -386,6 +399,7 @@ Error: Annotation must be either a const variable reference or const constructor
 **原因**: runtimeType使用時の型パラメータ
 
 **解決方法**：
+
 ```dart
 // BaseRepositoryの場合は自動的に適切な名前を設定
 // 例: "StockRepository<Stock, String>" → "StockRepository"

@@ -235,10 +235,12 @@ class UserService with LoggerMixin {
 LoggerMixinが既に適用されているクラス：
 
 #### Repositoryレイヤー（14クラス）
+
 - BaseRepository（自動適用）
 - StockTransactionRepository, MaterialRepository, etc.
 
 #### Serviceレイヤー（6クラス）
+
 - AnalyticsService
 - InventoryService
 - MenuService
