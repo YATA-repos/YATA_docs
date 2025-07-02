@@ -33,6 +33,8 @@ YATA/
 ├── pubspec.yaml                 # Flutter依存関係設定
 ├── pubspec.lock                 # 依存関係バージョンロック
 ├── analysis_options.yaml        # 静的解析・linter設定
+├── .claude/                     # Claude Code設定・コマンド
+│   └── commands/                # カスタムコマンド
 ├── lib/                        # メインソースコード
 ├── android/                    # Android固有設定
 ├── ios/                        # iOS固有設定
@@ -74,15 +76,9 @@ core/
 │   ├── constants.dart          
 │   ├── config.dart             
 │   ├── enums.dart              
+│   ├── log_enums/              # ログ関連列挙型
 │   ├── query_types.dart        
 │   └── timezone.dart           
-├── error/                      # エラー定義
-│   ├── error.dart              
-│   ├── base.dart               
-│   ├── auth.dart               
-│   ├── inventory.dart          
-│   ├── order.dart              
-│   └── repository.dart         
 ├── infrastructure/             # インフラ層
 │   ├── offline/                # オフライン機能（未実装）
 │   └── supabase/               # Supabase統合（未実装）
