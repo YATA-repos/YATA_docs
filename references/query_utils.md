@@ -7,13 +7,13 @@ QueryUtilsは、YATAアプリケーションにおけるSupabaseデータベー�
 ### 設計思想
 
 - **型安全性の確保**: Dart/Flutterの静的型システムを活用した完全な型安全性
-- **表現力の向上**: 31種類の演算子と階層化論理条件による豊富な表現力
-- **開発効率の向上**: 直感的なQueryConditionBuilderによる高速開発
+- **表現力の向上**: 19種類の演算子と階層化論理条件による豊富な表現力
+- **開発効率の向上**: 直感的なQueryUtilsの静的メソッドによる高速開発
 - **保守性の確保**: 統一されたインターフェースによる一貫したクエリ管理
 
 ## 主要機能
 
-### 1. フィルタ演算子（31種類対応）
+### 1. フィルタ演算子（19種類対応）
 
 #### 基本比較演算子
 
@@ -51,18 +51,9 @@ QueryUtilsは、YATAアプリケーションにおけるSupabaseデータベー�
 
 | 演算子 | 説明 | Supabaseメソッド | 使用例 |
 |--------|------|------------------|-------|
-| `contains` | 値を含む | `contains()` | `tags @> '["important"]'` |
-| `containedBy` | 値に含まれる | `containedBy()` | `'["tag1"]' <@ tags` |
-| `overlaps` | 重複する | `overlaps()` | `array1 && array2` |
-
-#### 範囲演算子
-
-| 演算子 | 説明 | Supabaseメソッド | 使用例 |
-|--------|------|------------------|-------|
-| `rangeGt` | 範囲より大きい | `rangeGt()` | `price_range >>= '[50,100)'` |
-| `rangeGte` | 範囲以上 | `rangeGte()` | `date_range @> '2024-01-01'` |
-| `rangeLt` | 範囲より小さい | `rangeLt()` | `score_range <<= '[0,50]'` |
-| `rangeLte` | 範囲以下 | `rangeLte()` | `age_range <@ '[20,30]'` |
+| `contains` | 値を含む | `contains()` | `tags.contains(['important'])` |
+| `containedBy` | 値に含まれる | `containedBy()` | `['tag1'].containedBy(tags)` |
+| `overlaps` | 重複する | `overlaps()` | `array1.overlaps(array2)` |
 
 ### 2. 論理条件システム（階層化対応）
 
@@ -78,12 +69,12 @@ QueryUtilsは、YATAアプリケーションにおけるSupabaseデータベー�
 
 ```dart
 // 複雑な論理条件の例
-AndCondition(
+QueryUtils.and(
   [
-    QueryConditionBuilder.eq("status", "active"),
-    OrCondition([
-      QueryConditionBuilder.gte("age", 18),
-      QueryConditionBuilder.eq("guardian_consent", true),
+    QueryUtils.eq("status", "active"),
+    QueryUtils.or([
+      QueryUtils.gte("age", 18),
+      QueryUtils.eq("guardian_consent", true),
     ]),
   ]
 )
@@ -106,7 +97,7 @@ import 'package:yata/core/utils/query_utils.dart';
 import 'package:yata/core/constants/query_types.dart';
 
 // 基本的な等価条件
-final condition = QueryConditionBuilder.eq("status", "active");
+final condition = QueryUtils.eq("status", "active");
 
 // Supabaseクエリに適用
 final query = supabase
@@ -121,9 +112,9 @@ final result = await QueryUtils.applyFilter(query, condition);
 ```dart
 // 複数の条件をAND結合で適用
 final filters = [
-  QueryConditionBuilder.eq("status", "active"),
-  QueryConditionBuilder.gte("created_at", "2024-01-01"),
-  QueryConditionBuilder.lt("total_amount", 1000),
+  QueryUtils.eq("status", "active"),
+  QueryUtils.gte("created_at", "2024-01-01"),
+  QueryUtils.lt("total_amount", 1000),
 ];
 
 final query = supabase.from("orders").select("*");
@@ -134,10 +125,10 @@ final result = await QueryUtils.applyFilters(query, filters);
 
 ```dart
 // OR条件の構築
-final orCondition = QueryConditionBuilder.or([
-  QueryConditionBuilder.eq("category", "food"),
-  QueryConditionBuilder.eq("category", "drink"),
-  QueryConditionBuilder.eq("category", "dessert"),
+final orCondition = QueryUtils.or([
+  QueryUtils.eq("category", "food"),
+  QueryUtils.eq("category", "drink"),
+  QueryUtils.eq("category", "dessert"),
 ]);
 
 final query = supabase.from("menu_items").select("*");
@@ -148,70 +139,59 @@ final result = await QueryUtils.applyFilter(query, orCondition);
 
 ```dart
 // 単一ソート条件
-final orderBy = QueryConditionBuilder.desc("created_at");
+final orderBy = QueryUtils.desc("created_at");
 final query = supabase.from("orders").select("*");
 final result = await QueryUtils.applyOrderBy(query, orderBy);
 
 // 複数ソート条件
 final orderBys = [
-  QueryConditionBuilder.asc("category"),
-  QueryConditionBuilder.desc("price"),
+  QueryUtils.asc("category"),
+  QueryUtils.desc("price"),
 ];
 final result = await QueryUtils.applyOrderBys(query, orderBys);
 ```
 
 ## 高度な機能
 
-### 1. QueryConditionBuilderの便利メソッド
+### 1. QueryUtilsの便利メソッド
 
-#### 日付範囲検索
+#### リスト内検索
 
 ```dart
-// 指定期間内のレコードを検索
-final dateRangeCondition = QueryConditionBuilder.dateRange(
-  "created_at",
-  DateTime(2024, 1, 1),
-  DateTime(2024, 12, 31),
-);
+// リストに含まれる値を検索
+final inListCondition = QueryUtils.inList("status", ["active", "pending"]);
 
 // 実際のクエリ適用例
-final recentOrders = await supabase
+final orders = await supabase
     .from("orders")
     .select("*")
-    .apply((query) => QueryUtils.applyFilter(query, dateRangeCondition));
+    .apply((query) => QueryUtils.applyFilter(query, inListCondition));
 ```
 
-#### テキスト検索
+#### NULL判定
 
 ```dart
-// 大文字小文字を区別しない部分一致検索
-final searchCondition = QueryConditionBuilder.search(
-  "product_name",
-  "coffee",
-  caseSensitive: false,
-);
+// NULL値のレコードを検索
+final isNullCondition = QueryUtils.isNull("completed_at");
 
 // 実際のクエリ適用例
-final products = await supabase
-    .from("products")
+final incompleteOrders = await supabase
+    .from("orders")
     .select("*")
-    .apply((query) => QueryUtils.applyFilter(query, searchCondition));
+    .apply((query) => QueryUtils.applyFilter(query, isNullCondition));
 ```
 
-#### 数値範囲検索
+#### NULL以外判定
 
 ```dart
-// 価格帯での商品検索
-final priceRangeCondition = QueryConditionBuilder.numberRange(
-  "price",
-  100,  // 最小値
-  500,  // 最大値
-);
+// NULL以外のレコードを検索
+final isNotNullCondition = QueryUtils.isNotNull("completed_at");
 
-final affordableProducts = await supabase
-    .from("products")
+// 実際のクエリ適用例
+final completedOrders = await supabase
+    .from("orders")
     .select("*")
-    .apply((query) => QueryUtils.applyFilter(query, priceRangeCondition));
+    .apply((query) => QueryUtils.applyFilter(query, isNotNullCondition));
 ```
 
 ### 2. 複雑な論理条件の構築
@@ -221,14 +201,14 @@ final affordableProducts = await supabase
 ```dart
 // (status = 'active' AND category IN ['food', 'drink']) 
 // OR (status = 'featured' AND price < 1000)
-final complexCondition = QueryConditionBuilder.or([
-  QueryConditionBuilder.and([
-    QueryConditionBuilder.eq("status", "active"),
-    QueryConditionBuilder.inList("category", ["food", "drink"]),
+final complexCondition = QueryUtils.or([
+  QueryUtils.and([
+    QueryUtils.eq("status", "active"),
+    QueryUtils.inList("category", ["food", "drink"]),
   ]),
-  QueryConditionBuilder.and([
-    QueryConditionBuilder.eq("status", "featured"),
-    QueryConditionBuilder.lt("price", 1000),
+  QueryUtils.and([
+    QueryUtils.eq("status", "featured"),
+    QueryUtils.lt("price", 1000),
   ]),
 ]);
 
@@ -253,23 +233,25 @@ List<QueryFilter> buildDynamicFilters({
   final List<QueryFilter> filters = [];
 
   if (status != null) {
-    filters.add(QueryConditionBuilder.eq("status", status));
+    filters.add(QueryUtils.eq("status", status));
   }
 
   if (category != null) {
-    filters.add(QueryConditionBuilder.eq("category", category));
+    filters.add(QueryUtils.eq("category", category));
   }
 
-  if (minPrice != null && maxPrice != null) {
-    filters.add(QueryConditionBuilder.numberRange("price", minPrice, maxPrice));
-  } else if (minPrice != null) {
-    filters.add(QueryConditionBuilder.gte("price", minPrice));
-  } else if (maxPrice != null) {
-    filters.add(QueryConditionBuilder.lte("price", maxPrice));
+  if (minPrice != null) {
+    filters.add(QueryUtils.gte("price", minPrice));
+  }
+  if (maxPrice != null) {
+    filters.add(QueryUtils.lte("price", maxPrice));
   }
 
-  if (fromDate != null && toDate != null) {
-    filters.add(QueryConditionBuilder.dateRange("created_at", fromDate, toDate));
+  if (fromDate != null) {
+    filters.add(QueryUtils.gte("created_at", fromDate.toIso8601String()));
+  }
+  if (toDate != null) {
+    filters.add(QueryUtils.lte("created_at", toDate.toIso8601String()));
   }
 
   return filters;
@@ -305,20 +287,23 @@ class ProductRepository extends BaseRepository<Product, String> {
     final List<QueryFilter> filters = [];
 
     if (name != null && name.isNotEmpty) {
-      filters.add(QueryConditionBuilder.search("name", name));
+      filters.add(QueryUtils.like("name", '%$name%'));
     }
 
     if (category != null) {
-      filters.add(QueryConditionBuilder.eq("category", category));
+      filters.add(QueryUtils.eq("category", category));
     }
 
-    if (minPrice != null && maxPrice != null) {
-      filters.add(QueryConditionBuilder.numberRange("price", minPrice, maxPrice));
+    if (minPrice != null) {
+      filters.add(QueryUtils.gte("price", minPrice));
+    }
+    if (maxPrice != null) {
+      filters.add(QueryUtils.lte("price", maxPrice));
     }
 
     final List<OrderByCondition> orderBys = [
-      QueryConditionBuilder.asc("category"),
-      QueryConditionBuilder.desc("created_at"),
+      QueryUtils.asc("category"),
+      QueryUtils.desc("created_at"),
     ];
 
     return await find(
@@ -336,10 +321,10 @@ class ProductRepository extends BaseRepository<Product, String> {
 
 ```dart
 // 在庫不足商品の検索
-final lowStockCondition = QueryConditionBuilder.and([
-  QueryConditionBuilder.lt("current_stock", "minimum_stock"),
-  QueryConditionBuilder.eq("status", "active"),
-  QueryConditionBuilder.isNotNull("supplier_id"),
+final lowStockCondition = QueryUtils.and([
+  QueryUtils.lt("current_stock", "minimum_stock"),
+  QueryUtils.eq("status", "active"),
+  QueryUtils.isNotNull("supplier_id"),
 ]);
 
 final lowStockProducts = await supabase
@@ -348,7 +333,7 @@ final lowStockProducts = await supabase
     .apply((query) => QueryUtils.applyFilter(query, lowStockCondition))
     .apply((query) => QueryUtils.applyOrderBy(
         query, 
-        QueryConditionBuilder.asc("current_stock")
+        QueryUtils.asc("current_stock")
       ));
 ```
 
@@ -356,14 +341,11 @@ final lowStockProducts = await supabase
 
 ```dart
 // 月次売上分析
-final monthlySalesCondition = QueryConditionBuilder.and([
-  QueryConditionBuilder.dateRange(
-    "order_date",
-    DateTime(2024, 6, 1),
-    DateTime(2024, 6, 30),
-  ),
-  QueryConditionBuilder.inList("status", ["completed", "delivered"]),
-  QueryConditionBuilder.gt("total_amount", 0),
+final monthlySalesCondition = QueryUtils.and([
+  QueryUtils.gte("order_date", DateTime(2024, 6, 1).toIso8601String()),
+  QueryUtils.lte("order_date", DateTime(2024, 6, 30).toIso8601String()),
+  QueryUtils.inList("status", ["completed", "delivered"]),
+  QueryUtils.gt("total_amount", 0),
 ]);
 
 final monthlySales = await supabase
@@ -372,7 +354,7 @@ final monthlySales = await supabase
     .apply((query) => QueryUtils.applyFilter(query, monthlySalesCondition))
     .apply((query) => QueryUtils.applyOrderBy(
         query,
-        QueryConditionBuilder.desc("order_date")
+        QueryUtils.desc("order_date")
       ));
 ```
 
@@ -380,21 +362,21 @@ final monthlySales = await supabase
 
 ```dart
 // アクティブユーザーの権限チェック
-final activeUserCondition = QueryConditionBuilder.and([
-  QueryConditionBuilder.eq("status", "active"),
-  QueryConditionBuilder.isNotNull("last_login_at"),
-  QueryConditionBuilder.gte(
+final activeUserCondition = QueryUtils.and([
+  QueryUtils.eq("status", "active"),
+  QueryUtils.isNotNull("last_login_at"),
+  QueryUtils.gte(
     "last_login_at",
     DateTime.now().subtract(Duration(days: 30)).toIso8601String(),
   ),
 ]);
 
-final adminUsersCondition = QueryConditionBuilder.or([
-  QueryConditionBuilder.eq("role", "admin"),
-  QueryConditionBuilder.eq("role", "super_admin"),
+final adminUsersCondition = QueryUtils.or([
+  QueryUtils.eq("role", "admin"),
+  QueryUtils.eq("role", "super_admin"),
 ]);
 
-final finalCondition = QueryConditionBuilder.and([
+final finalCondition = QueryUtils.and([
   activeUserCondition,
   adminUsersCondition,
 ]);
@@ -411,12 +393,12 @@ final adminUsers = await supabase
 
 ```dart
 // インデックスが効率的に使用される条件
-final indexFriendlyCondition = QueryConditionBuilder.and([
+final indexFriendlyCondition = QueryUtils.and([
   // インデックス列を先頭に
-  QueryConditionBuilder.eq("status", "active"),
-  QueryConditionBuilder.gte("created_at", "2024-01-01"),
+  QueryUtils.eq("status", "active"),
+  QueryUtils.gte("created_at", "2024-01-01"),
   // 選択性の高い条件を優先
-  QueryConditionBuilder.eq("user_id", userId),
+  QueryUtils.eq("user_id", userId),
 ]);
 ```
 
@@ -424,21 +406,21 @@ final indexFriendlyCondition = QueryConditionBuilder.and([
 
 ```dart
 // ✅ 効率的なクエリパターン
-final optimizedCondition = QueryConditionBuilder.and([
+final optimizedCondition = QueryUtils.and([
   // 最も選択性の高い条件を最初に
-  QueryConditionBuilder.eq("user_id", userId),
-  QueryConditionBuilder.eq("status", "active"),
+  QueryUtils.eq("user_id", userId),
+  QueryUtils.eq("status", "active"),
   // 範囲条件は後で
-  QueryConditionBuilder.gte("created_at", startDate),
+  QueryUtils.gte("created_at", startDate),
 ]);
 
 // ❌ 非効率なクエリパターン
-final inefficientCondition = QueryConditionBuilder.and([
+final inefficientCondition = QueryUtils.and([
   // 選択性の低い条件が最初
-  QueryConditionBuilder.isNotNull("created_at"),
-  QueryConditionBuilder.like("description", "%some_text%"),
+  QueryUtils.isNotNull("created_at"),
+  QueryUtils.like("description", "%some_text%"),
   // 実際の絞り込み条件が最後
-  QueryConditionBuilder.eq("user_id", userId),
+  QueryUtils.eq("user_id", userId),
 ]);
 ```
 
@@ -487,7 +469,6 @@ bool validateCondition(FilterCondition condition) {
     LogService.error(
       "QueryValidation",
       "Invalid value for operator ${condition.operator}",
-      "演算子${condition.operator}に対して無効な値です",
     );
     return false;
   }
@@ -497,7 +478,6 @@ bool validateCondition(FilterCondition condition) {
     LogService.error(
       "QueryValidation",
       "Column name cannot be empty",
-      "カラム名を指定してください",
     );
     return false;
   }
@@ -549,14 +529,11 @@ Future<List<Map<String, dynamic>>> executeQuerySafely(
 ### 1. 条件構築のベストプラクティス
 
 ```dart
-// ✅ 推奨パターン：QueryConditionBuilderを使用
-final condition = QueryConditionBuilder.and([
-  QueryConditionBuilder.eq("status", "active"),
-  QueryConditionBuilder.dateRange(
-    "created_at",
-    DateTime(2024, 1, 1),
-    DateTime(2024, 12, 31),
-  ),
+// ✅ 推奨パターン：QueryUtilsの静的メソッドを使用
+final condition = QueryUtils.and([
+  QueryUtils.eq("status", "active"),
+  QueryUtils.gte("created_at", DateTime(2024, 1, 1).toIso8601String()),
+  QueryUtils.lte("created_at", DateTime(2024, 12, 31).toIso8601String()),
 ]);
 
 // ❌ 非推奨パターン：直接コンストラクタを使用
@@ -574,15 +551,15 @@ final condition = AndCondition([
 
 ```dart
 // ✅ 明確な命名
-final activeUserCondition = QueryConditionBuilder.eq("status", "active");
-final recentOrdersCondition = QueryConditionBuilder.gte(
+final activeUserCondition = QueryUtils.eq("status", "active");
+final recentOrdersCondition = QueryUtils.gte(
   "created_at",
   DateTime.now().subtract(Duration(days: 7)).toIso8601String(),
 );
 
 // ❌ 曖昧な命名
-final condition1 = QueryConditionBuilder.eq("status", "active");
-final filter = QueryConditionBuilder.gte("created_at", someDate);
+final condition1 = QueryUtils.eq("status", "active");
+final filter = QueryUtils.gte("created_at", someDate);
 ```
 
 ### 3. 再利用可能なクエリ条件
@@ -592,26 +569,29 @@ final filter = QueryConditionBuilder.gte("created_at", someDate);
 class CommonQueryConditions {
   // アクティブレコード条件
   static FilterCondition get activeRecords =>
-      QueryConditionBuilder.eq("status", "active");
+      QueryUtils.eq("status", "active");
 
   // 最近のレコード条件（7日以内）
   static FilterCondition get recentRecords =>
-      QueryConditionBuilder.gte(
+      QueryUtils.gte(
         "created_at",
         DateTime.now().subtract(Duration(days: 7)).toIso8601String(),
       );
 
   // ユーザー固有の条件
   static FilterCondition userOwnedRecords(String userId) =>
-      QueryConditionBuilder.eq("user_id", userId);
+      QueryUtils.eq("user_id", userId);
 
   // 日付範囲条件
   static AndCondition dateRangeRecords(DateTime from, DateTime to) =>
-      QueryConditionBuilder.dateRange("created_at", from, to);
+      QueryUtils.and([
+        QueryUtils.gte("created_at", from.toIso8601String()),
+        QueryUtils.lte("created_at", to.toIso8601String()),
+      ]);
 }
 
 // 使用例
-final condition = QueryConditionBuilder.and([
+final condition = QueryUtils.and([
   CommonQueryConditions.activeRecords,
   CommonQueryConditions.userOwnedRecords(currentUserId),
   CommonQueryConditions.recentRecords,
@@ -650,27 +630,25 @@ class ProductSearchService {
     final List<QueryFilter> conditions = [];
 
     if (name != null && name.isNotEmpty) {
-      conditions.add(QueryConditionBuilder.search("name", name));
+      conditions.add(QueryUtils.like("name", '%$name%'));
     }
 
     if (category != null) {
-      conditions.add(QueryConditionBuilder.eq("category", category));
+      conditions.add(QueryUtils.eq("category", category));
     }
 
     if (priceRange != null) {
-      conditions.add(QueryConditionBuilder.numberRange(
-        "price",
-        priceRange.min,
-        priceRange.max,
-      ));
+      conditions.add(QueryUtils.and([
+        QueryUtils.gte("price", priceRange.min),
+        QueryUtils.lte("price", priceRange.max),
+      ]));
     }
 
     if (dateRange != null) {
-      conditions.add(QueryConditionBuilder.dateRange(
-        "created_at",
-        dateRange.start,
-        dateRange.end,
-      ));
+      conditions.add(QueryUtils.and([
+        QueryUtils.gte("created_at", dateRange.start.toIso8601String()),
+        QueryUtils.lte("created_at", dateRange.end.toIso8601String()),
+      ]));
     }
 
     return conditions;
@@ -694,10 +672,10 @@ class ProductSearchService {
 
 ```dart
 // ❌ エラーが発生するコード
-final condition = QueryConditionBuilder.inList("categories", "food"); // String型を渡している
+final condition = QueryUtils.inList("categories", "food"); // String型を渡している
 
 // ✅ 修正されたコード
-final condition = QueryConditionBuilder.inList("categories", ["food"]); // List型を渡す
+final condition = QueryUtils.inList("categories", ["food"]); // List型を渡す
 ```
 
 **解決方法**:
@@ -712,19 +690,19 @@ final condition = QueryConditionBuilder.inList("categories", ["food"]); // List�
 
 ```dart
 // ❌ 問題のあるコード：ネストしたOR条件
-final problematicCondition = QueryConditionBuilder.or([
-  QueryConditionBuilder.or([
-    QueryConditionBuilder.eq("status", "active"),
-    QueryConditionBuilder.eq("status", "pending"),
+final problematicCondition = QueryUtils.or([
+  QueryUtils.or([
+    QueryUtils.eq("status", "active"),
+    QueryUtils.eq("status", "pending"),
   ]),
-  QueryConditionBuilder.eq("priority", "high"),
+  QueryUtils.eq("priority", "high"),
 ]);
 
 // ✅ 修正されたコード：フラットなOR条件
-final fixedCondition = QueryConditionBuilder.or([
-  QueryConditionBuilder.eq("status", "active"),
-  QueryConditionBuilder.eq("status", "pending"),
-  QueryConditionBuilder.eq("priority", "high"),
+final fixedCondition = QueryUtils.or([
+  QueryUtils.eq("status", "active"),
+  QueryUtils.eq("status", "pending"),
+  QueryUtils.eq("priority", "high"),
 ]);
 ```
 
@@ -769,17 +747,7 @@ QueryUtils (静的ユーティリティ)
 ├── applyFilter() - 単一フィルタ適用
 ├── applyFilters() - 複数フィルタ適用（AND結合）
 ├── applyOrderBy() - ソート条件適用
-└── Helper Methods - 後方互換性メソッド群
-
-QueryConditionBuilder (ファクトリクラス)
-├── Basic Operators - eq, neq, gt, gte, lt, lte
-├── String Operators - like, ilike
-├── List Operators - inList, notInList
-├── Null Operators - isNull, isNotNull
-├── Array Operators - contains, containedBy, overlaps
-├── Range Operators - rangeGt, rangeGte, rangeLt, rangeLte
-├── Logical Operators - and, or, complex
-└── Convenience Methods - dateRange, search, numberRange
+└── Static Methods - eq, neq, gt, gte, lt, lte, like, ilike, inList, notInList, isNull, isNotNull, contains, containedBy, overlaps, and, or, asc, desc
 
 Query Types (型定義)
 ├── QueryFilter (基底クラス)
@@ -796,7 +764,7 @@ Query Types (型定義)
 1. **条件構築フェーズ**
 
    ```
-   QueryConditionBuilder → FilterCondition/LogicalCondition 生成
+   QueryUtilsの静的メソッド → FilterCondition/LogicalCondition 生成
    ```
 
 2. **クエリ適用フェーズ**
@@ -942,11 +910,11 @@ filters = [
 
 ```dart
 // 複雑な階層化条件をサポート
-final condition = QueryConditionBuilder.and([
-  QueryConditionBuilder.eq("status", "active"),
-  QueryConditionBuilder.or([
-    QueryConditionBuilder.gte("age", 18),
-    QueryConditionBuilder.eq("guardian_consent", true),
+final condition = QueryUtils.and([
+  QueryUtils.eq("status", "active"),
+  QueryUtils.or([
+    QueryUtils.gte("age", 18),
+    QueryUtils.eq("guardian_consent", true),
   ]),
 ]);
 ```
@@ -955,9 +923,9 @@ final condition = QueryConditionBuilder.and([
 
 ```dart
 // Python版にはない便利機能
-QueryConditionBuilder.dateRange("created_at", from, to);
-QueryConditionBuilder.search("name", "search_term");
-QueryConditionBuilder.numberRange("price", 100, 500);
+QueryUtils.inList("status", ["active", "pending"]);
+QueryUtils.isNull("completed_at");
+QueryUtils.isNotNull("completed_at");
 ```
 
 ## 今後の拡張予定

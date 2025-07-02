@@ -28,9 +28,9 @@ abstract class BaseRepository<T extends BaseModel, ID> with LoggerMixin {
   /// JSONからモデルインスタンスを作成するファクトリ関数
   T Function(Map<String, dynamic> json) get fromJson;
   
-  /// ログコンポーネント名（runtimeTypeから自動取得）
+  /// ログコンポーネント名
   @override
-  String get loggerComponent => runtimeType.toString().split("<")[0];
+  String get loggerComponent => "BaseRepository<${T.toString()}>";
 }
 ```
 
@@ -213,18 +213,18 @@ final Order? order = await repository.getById("order_123");
 // 条件検索
 final List<Order> activeOrders = await repository.find(
   filters: [
-    QueryConditionBuilder.eq("status", "preparing"),
-    QueryConditionBuilder.gte("created_at", "2024-01-01"),
+    QueryUtils.eq("status", "preparing"),
+    QueryUtils.gte("created_at", "2024-01-01"),
   ],
-  orderBy: [QueryConditionBuilder.desc("created_at")],
+  orderBy: [QueryUtils.desc("created_at")],
   limit: 50,
 );
 
 // 複雑な条件
-final AndCondition complexFilter = QueryConditionBuilder.and([
-  QueryConditionBuilder.eq("user_id", userId),
-  QueryConditionBuilder.inList("status", ["preparing", "completed"]),
-  QueryConditionBuilder.gte("total_amount", 1000),
+final AndCondition complexFilter = QueryUtils.and([
+  QueryUtils.eq("user_id", userId),
+  QueryUtils.inList("status", ["preparing", "completed"]),
+  QueryUtils.gte("total_amount", 1000),
 ]);
 final List<Order> userOrders = await repository.find(filters: [complexFilter]);
 ```
@@ -300,7 +300,7 @@ final bool orderExists = await repository.existsById("order_123");
 
 // 条件付きカウント
 final int activeOrderCount = await repository.count(
-  filters: [QueryConditionBuilder.eq("status", "active")],
+  filters: [QueryUtils.eq("status", "active")],
 );
 
 // 全件カウント
@@ -350,15 +350,15 @@ class OrderRepository extends BaseRepository<Order, String> {
   // ビジネス固有のメソッドを追加可能
   Future<List<Order>> findByUserId(String userId) async {
     return find(
-      filters: [QueryConditionBuilder.eq("user_id", userId)],
-      orderBy: [QueryConditionBuilder.desc("created_at")],
+      filters: [QueryUtils.eq("user_id", userId)],
+      orderBy: [QueryUtils.desc("created_at")],
     );
   }
 
   Future<List<Order>> findActiveOrders() async {
     return find(
       filters: [
-        QueryConditionBuilder.inList("status", ["preparing", "in_progress"]),
+        QueryUtils.inList("status", ["preparing", "in_progress"]),
       ],
     );
   }
@@ -419,16 +419,16 @@ QueryUtilsとの統合により、高度な検索条件を構築できます：
 
 ```dart
 // 複雑な AND/OR 条件
-final ComplexCondition complexQuery = QueryConditionBuilder.complex(
+final ComplexCondition complexQuery = QueryUtils.complex(
   andConditions: [
-    QueryConditionBuilder.gte("created_at", "2024-01-01"),
-    QueryConditionBuilder.lt("created_at", "2024-12-31"),
+    QueryUtils.gte("created_at", "2024-01-01"),
+    QueryUtils.lt("created_at", "2024-12-31"),
   ],
   orConditions: [
-    QueryConditionBuilder.eq("status", "completed"),
-    QueryConditionBuilder.and([
-      QueryConditionBuilder.eq("status", "preparing"),
-      QueryConditionBuilder.gte("total_amount", 1000),
+    QueryUtils.eq("status", "completed"),
+    QueryUtils.and([
+      QueryUtils.eq("status", "preparing"),
+      QueryUtils.gte("total_amount", 1000),
     ]),
   ],
 );
@@ -436,8 +436,8 @@ final ComplexCondition complexQuery = QueryConditionBuilder.complex(
 final List<Order> orders = await repository.find(
   filters: [complexQuery],
   orderBy: [
-    QueryConditionBuilder.desc("total_amount"),
-    QueryConditionBuilder.asc("created_at"),
+    QueryUtils.desc("total_amount"),
+    QueryUtils.asc("created_at"),
   ],
   limit: 100,
 );
@@ -455,8 +455,8 @@ class BulkOrderProcessor {
   Future<void> processBulkOrders(List<Order> orders) async {
     // チャンク処理による効率的な一括作成
     const int chunkSize = 100;
-    for (int i = 0; i < orders.length; i += chunkSize) {
-      final int end = math.min(i + chunkSize, orders.length);
+      for (int i = 0; i < keys.length; i += chunkSize) {
+        final int end = (i + chunkSize < keys.length) ? i + chunkSize : keys.length;
       final List<Order> chunk = orders.sublist(i, end);
       
       await _repository.bulkCreate(chunk);
@@ -468,7 +468,7 @@ class BulkOrderProcessor {
     // 古い注文の一括削除
     final List<Order> oldOrders = await _repository.find(
       filters: [
-        QueryConditionBuilder.lt("created_at", 
+        QueryUtils.lt("created_at", 
           DateTime.now().subtract(const Duration(days: 365)).toIso8601String()),
       ],
     );
@@ -581,7 +581,7 @@ LogService.info("Performance", "Bulk create took ${stopwatch.elapsedMilliseconds
 
 // 効率的な検索
 final List<Order> results = await repository.find(
-  filters: [QueryConditionBuilder.eq("status", "active")],
+  filters: [QueryUtils.eq("status", "active")],
   limit: 10, // 必要な分だけ取得
 );
 ```
@@ -689,7 +689,7 @@ class OrderRepository extends BaseRepository<Order, String> {
 
   // ビジネス固有のメソッド
   Future<List<Order>> findByStatus(OrderStatus status) async {
-    return find(filters: [QueryConditionBuilder.eq("status", status.name)]);
+    return find(filters: [QueryUtils.eq("status", status.name)]);
   }
 }
 
@@ -732,13 +732,13 @@ Future<Order?> unsafeGetOrder(String orderId) async {
 Future<List<Order>> findRecentActiveOrders() async {
   return repository.find(
     filters: [
-      QueryConditionBuilder.and([
-        QueryConditionBuilder.eq("status", "active"),
-        QueryConditionBuilder.gte("created_at", 
+      QueryUtils.and([
+        QueryUtils.eq("status", "active"),
+        QueryUtils.gte("created_at", 
           DateTime.now().subtract(const Duration(days: 30)).toIso8601String()),
       ]),
     ],
-    orderBy: [QueryConditionBuilder.desc("created_at")],
+    orderBy: [QueryUtils.desc("created_at")],
     limit: 50, // 必要な分だけ取得
   );
 }

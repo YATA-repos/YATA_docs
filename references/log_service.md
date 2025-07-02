@@ -102,18 +102,6 @@ LogService.warning("UserAuth", "Invalid login attempt");
 LogService.error("UserAuth", "Database connection failed", null, error, stackTrace);
 ```
 
-### 4. 多言語対応ログ
-
-```dart
-// 英語・日本語併用メッセージ
-LogService.info("Inventory", "Stock updated", "在庫が更新されました");
-// 出力: "Stock updated (在庫が更新されました)"
-
-// 英語のみの場合
-LogService.info("Inventory", "Stock updated");
-// 出力: "Stock updated"
-```
-
 ### 5. 事前定義メッセージの使用
 
 ```dart
@@ -192,16 +180,16 @@ class InventoryService with LoggerMixin {
 
 ```dart
 // デバッグログ
-logDebug("Debug message", "デバッグメッセージ");
+logDebug("Debug message");
 
 // 情報ログ  
-logInfo("Info message", "情報メッセージ");
+logInfo("Info message");
 
 // 警告ログ
-logWarning("Warning message", "警告メッセージ");
+logWarning("Warning message");
 
 // エラーログ
-logError("Error message", "エラーメッセージ", error, stackTrace);
+logError("Error message", error, stackTrace);
 ```
 
 #### 事前定義メッセージメソッド
@@ -272,9 +260,11 @@ await LogService.dispose();
 ```dart
 final stats = await LogService.getLogStats();
 print("ログファイル数: ${stats['totalFiles']}");
-print("総サイズ: ${stats['totalSizeMB']} MB");
+print("総サイズ（バイト）: ${stats['totalSizeBytes']}");
+print("総サイズ（MB）: ${stats['totalSizeMB']} MB");
 print("バッファ長: ${stats['bufferLength']}");
 print("最小レベル: ${stats['minimumLevel']}");
+print("フラッシュ間隔（秒）: ${stats['flushInterval']}");
 ```
 
 ### 4. 古いログファイルのクリーンアップ
@@ -539,7 +529,6 @@ try {
   LogService.error(
     "DatabaseService",
     "Failed to perform operation",
-    "データベース操作に失敗しました",
     error,
     stackTrace,
   );
@@ -591,10 +580,10 @@ Timer.periodic(Duration(days: 1), (_) async {
 mixin LoggerMixin {
   String get loggerComponent;
   
-  void logDebug(String message, [String? messageJa]);
-  void logInfo(String message, [String? messageJa]);
-  void logWarning(String message, [String? messageJa]);
-  void logError(String message, [String? messageJa, Object? error, StackTrace? stackTrace]);
+  void logDebug(String message);
+  void logInfo(String message);
+  void logWarning(String message);
+  void logError(String message, [Object? error, StackTrace? stackTrace]);
   
   void logInfoMessage(LogMessage logMessage, [Map<String, String>? params]);
   void logWarningMessage(LogMessage logMessage, [Map<String, String>? params]);

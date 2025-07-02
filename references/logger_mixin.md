@@ -60,13 +60,13 @@ class LoggerComponent {
 
 // LoggerMixin本体
 mixin LoggerMixin {
-  String get loggerComponent; // 抽象getter（実装必須）
+  String get loggerComponent; // 具象実装（デフォルトでruntimeType.toString()）
   
   // 簡潔なログメソッド群
-  void logDebug(String message, [String? messageJa]);
-  void logInfo(String message, [String? messageJa]);
-  void logWarning(String message, [String? messageJa]);
-  void logError(String message, [String? messageJa, Object? error, StackTrace? stackTrace]);
+  void logDebug(String message);
+  void logInfo(String message);
+  void logWarning(String message);
+  void logError(String message, [Object? error, StackTrace? stackTrace]);
   
   // 事前定義メッセージ用メソッド
   void logInfoMessage(LogMessage logMessage, [Map<String, String>? params]);
@@ -84,8 +84,8 @@ BaseRepositoryレベルでLoggerMixinを適用することで、14個のReposito
 ```dart
 @loggerComponent
 abstract class BaseRepository<T, ID> with LoggerMixin {
-  @override
-  String get loggerComponent => runtimeType.toString().split("<")[0];
+  // loggerComponentはデフォルトでruntimeType.toString()が使用される
+  // BaseRepositoryでは"BaseRepository<T>"のような形式になる
   
   // 全CRUDメソッドで簡潔なログ記録が可能
   Future<T?> create(T entity) async {
@@ -207,14 +207,14 @@ class ExampleService with LoggerMixin {
     logInfo("Operation in progress");
     
     // 多言語メッセージ
-    logInfo("Process completed", "処理が完了しました");
+    // LogService.infoWithMessage を使用してください
     
     try {
       // リスクのある処理
       await riskyOperation();
     } catch (error, stackTrace) {
       // エラーログ（リリース時も保存）
-      logError("Operation failed", "操作に失敗しました", error, stackTrace);
+      logError("Operation failed", error, stackTrace);
       rethrow;
     }
   }
@@ -284,21 +284,6 @@ String get loggerComponent => runtimeType.toString().split("<")[0];
 
 ## 設定忘れ防止メカニズム
 
-### コンパイル時チェック
-
-LoggerMixinの抽象getterにより、実装忘れを防止：
-
-```dart
-mixin LoggerMixin {
-  String get loggerComponent; // 実装必須
-}
-
-class ExampleService with LoggerMixin {
-  // loggerComponentの実装を忘れるとコンパイルエラー
-  // Error: Missing concrete implementation of 'getter mixin LoggerMixin.loggerComponent'
-}
-```
-
 ### @loggerComponentアノテーション
 
 可読性向上と意図の明示：
@@ -357,24 +342,7 @@ LogService.error("Component", "message", null, e) → logError("message", null, 
 
 ### よくある問題
 
-#### 1. loggerComponentの実装忘れ
-
-**症状**：
-
-```
-Error: Missing concrete implementation of 'getter mixin LoggerMixin.loggerComponent'
-```
-
-**解決方法**：
-
-```dart
-class ExampleService with LoggerMixin {
-  @override
-  String get loggerComponent => "ExampleService"; // この行を追加
-}
-```
-
-#### 2. アノテーションエラー
+#### 1. アノテーションエラー
 
 **症状**：
 
@@ -392,7 +360,7 @@ Error: Annotation must be either a const variable reference or const constructor
 @loggerComponent
 ```
 
-#### 3. 期待したコンポーネント名が出力されない
+#### 2. 期待したコンポーネント名が出力されない
 
 **症状**: ログに想定外のコンポーネント名が表示される
 
@@ -451,17 +419,6 @@ try {
   );
   rethrow;
 }
-```
-
-### 4. 多言語対応
-
-```dart
-// ✅ 良い例：英語・日本語併用
-logInfo("User registered successfully", "ユーザー登録が完了しました");
-logWarning("Invalid email format", "メールアドレスの形式が正しくありません");
-
-// ❌ 悪い例：日本語のみ
-logInfo("ユーザー登録完了"); // 英語メッセージがない
 ```
 
 ## 今後の拡張予定
